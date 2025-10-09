@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Classificação doenças de pele — captura & pré-processamento</title>
+<style>
+  :root {
+    --bg:#0f172a; --card:#111827; --muted:#94a3b8; --acc:#22c55e; --warn:#f59e0b; --bad:#ef4444; --good:#10b981; --txt:#e5e7eb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;color:var(--txt);background:linear-gradient(180deg,#0b1023,#0a122e 40%,#06111f)}
+  header{padding:16px 20px;text-align:center}
+  header h1{margin:6px 0 2px;font-weight:800;letter-spacing:.3px}
+  header p{margin:4px 0;color:var(--muted);font-size:14px}
+  .container{max-width:1040px;margin:0 auto;padding:16px}
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+  .panel{background:rgba(17,24,39,.65);border:1px solid rgba(255,255,255,.06);border-radius:18px;overflow:hidden;backdrop-filter: blur(6px)}
+  .panel header{padding:12px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+  .panel header h2{margin:0;font-size:16px}
+  .panel .content{padding:14px}
+  .btn{appearance:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--txt);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s}
+  .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.08)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .btn.primary{border-color:rgba(34,197,94,.35);background:rgba(34,197,94,.12)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .video-wrap{position:relative;aspect-ratio:3/4;background:#000;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  video{width:100%;height:100%;object-fit:cover;display:block;filter:contrast(1.02) saturate(1.02)}
+  /* Overlay circular para "imitar" dermatoscópio */
+  .overlay{
+    position:absolute;inset:0;pointer-events:none;
+    background: radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(0,0,0,.64) 39% 100%);
+    /* grade leve para ajudar a centralizar */
+    mask-composite: exclude;
+  }
+  .status{
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:14px;color:var(--muted)
+  }
+  .pill{padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);font-weight:600}
+  .pill.good{border-color:rgba(16,185,129,.45);color:#b7f9de;background:rgba(16,185,129,.08)}
+  .pill.warn{border-color:rgba(245,158,11,.45);color:#fde68a;background:rgba(245,158,11,.08)}
+  .pill.bad{border-color:rgba(239,68,68,.45);color:#fecaca;background:rgba(239,68,68,.08)}
+  canvas{max-width:100%;background:#0b1220;border-radius:12px;border:1px solid rgba(255,255,255,.08)}
+  .foot{margin-top:10px;color:var(--muted);font-size:12px}
+  input[type=file]{display:none}
+  .slider-wrap{margin-top:10px}
+  .slider-wrap label{font-size:12px;color:var(--muted)}
+  .slider-wrap input{width:100%}
+</style>
+</head>
+<body>
+<header>
+  <h1>Classificação doenças de pele</h1>
+  <p>Captura padronizada com máscara circular, checagem de tremor/blur e crop automático para ROI.</p>
+</header>
+
+<div class="container grid">
+  <!-- Painel de captura -->
+  <section class="panel">
+    <header><h2>Captura</h2></header>
+    <div class="content">
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" playsinline muted></video>
+        <div class="overlay"></div>
+      </div>
+
+      <div class="status" id="status">
+        <span class="pill" id="motion">MSE: —</span>
+        <span class="pill" id="sharp">Laplaciano: —</span>
+        <span class="pill warn" id="hint">Apontar a lesão ao centro e manter firme…</span>
+      </div>
+
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="openCam">Abrir câmera</button>
+        <button class="btn" id="capture" disabled>Capturar</button>
+        <label for="file" class="btn">Importar imagem</label>
+        <input type="file" id="file" accept="image/*" />
+        <button class="btn" id="download" disabled>Baixar PNG (crop)</button>
+
+        <button class="btn" id="pickFolder">Escolher pasta destino</button>
+        <button class="btn" id="saveToFolder" disabled>Salvar na pasta</button>
+      </div>
+
+      <div class="slider-wrap">
+        <label for="circleSize">Diâmetro do círculo (% do menor lado do preview): <span id="circleVal">76</span>%</label>
+        <input type="range" id="circleSize" min="50" max="95" value="76" />
+      </div>
+
+      <div class="foot">
+        Dica: espere os indicadores ficarem verdes para capturar. O botão “Capturar” só libera quando a cena está estável e nítida.
+      </div>
+    </div>
+  </section>
+
+  <!-- Painel de resultado -->
+  <section class="panel">
+    <header><h2>Resultado (pré-processado)</h2></header>
+    <div class="content">
+      <canvas id="outCanvas" width="512" height="512"></canvas>
+      <div class="foot">Saída já vem recortada no formato **circular** (PNG com fundo transparente) e centralizada.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const video = document.getElementById('video');
+  const openCamBtn = document.getElementById('openCam');
+  const captureBtn = document.getElementById('capture');
+  const downloadBtn = document.getElementById('download');
+  const fileInput = document.getElementById('file');
+  const outCanvas = document.getElementById('outCanvas');
+  const overlay = document.querySelector('.overlay');
+  const motionPill = document.getElementById('motion');
+  const sharpPill = document.getElementById('sharp');
+  const hintPill = document.getElementById('hint');
+  const circleSizeSlider = document.getElementById('circleSize');
+  const circleVal = document.getElementById('circleVal');
+  const videoWrap = document.getElementById('videoWrap');
+
+  let stream = null;
+  let rafId = null;
+  let prevFrame = null;          // Uint8ClampedArray (grayscale)
+  let analyzing = false;
+
+  // thresholds (ajustáveis)
+  let THRESH_MSE = 55;           // movimento (quanto menor melhor). ~20–80 típico
+  let THRESH_LAPL = 120.0;       // nitidez (quanto maior melhor). ~80–300 típico
+  let stableFramesNeeded = 8;    // nº de frames consecutivos estáveis para liberar captura
+  let stableCounter = 0;
+
+  // Canvas “offscreen” para análise
+  const proc = document.createElement('canvas');
+  const pctx = proc.getContext('2d', { willReadFrequently: true });
+
+  function updateOverlay() {
+    // Ajusta o raio do círculo na máscara (via background radial-gradient)
+    const pct = Number(circleSizeSlider.value);
+    circleVal.textContent = pct;
+    // raio em % do menor lado
+    const stop = Math.max(0, Math.min(100, pct));
+    overlay.style.background = `radial-gradient(circle at 50% 50%, transparent 0 ${stop - 1}%, rgba(0,0,0,.64) ${stop}% 100%)`;
+  }
+  circleSizeSlider.addEventListener('input', updateOverlay);
+  updateOverlay();
+
+async function openCamera() {
+  // encerra stream anterior
+  if (stream) stream.getTracks().forEach(t => t.stop());
+
+  async function tryGet(constraints) {
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+
+  // tenta environment -> user -> genérico
+  const trials = [
+    { video: { facingMode: { exact: 'environment' }, width:{ideal:1280}, height:{ideal:1706} }, audio:false },
+    { video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:1706} }, audio:false },
+    { video: { facingMode: 'user', width:{ideal:1280}, height:{ideal:1706} }, audio:false },
+    { video: true, audio: false }
+  ];
+
+  let lastErr = null;
+  for (const c of trials) {
+    try {
+      const s = await tryGet(c);
+      stream = s;
+      video.srcObject = s;
+      await video.play();
+      startAnalyzeLoop();
+      // opcional: listar câmeras disponíveis no console
+      navigator.mediaDevices.enumerateDevices().then(devs => {
+        console.log('devices:', devs.filter(d=>d.kind==='videoinput'));
+      });
+      return;
+    } catch (e) {
+      lastErr = e;
+      console.warn('getUserMedia falhou com', c, e.name, e.message);
+      // erros comuns:
+      // NotAllowedError -> permissão negada
+      // NotFoundError   -> sem câmera ou bloqueada
+      // NotReadableError-> outra app está usando
+      // OverconstrainedError -> facingMode/reso não suportado
+      // SecurityError   -> origem não segura (precisa https/localhost)
+    }
+  }
+
+  let hint = 'Não foi possível acessar a câmera.';
+  if (lastErr && lastErr.name) {
+    if (lastErr.name === 'NotAllowedError') hint = 'Permissão negada. Verifique permissões do navegador para ESTE site.';
+    else if (lastErr.name === 'NotFoundError') hint = 'Nenhuma câmera encontrada ou bloqueada pelo sistema.';
+    else if (lastErr.name === 'NotReadableError') hint = 'A câmera está em uso por outro app (feche Zoom/Meet/Teams).';
+    else if (lastErr.name === 'OverconstrainedError') hint = 'A câmera não suporta essas configurações; tente outra câmera.';
+    else if (lastErr.name === 'SecurityError') hint = 'Precisa abrir via HTTPS ou localhost. Evite file://';
+  }
+  alert(hint);
+}
+
+
+  function startAnalyzeLoop() {
+    analyzing = true;
+    // Dimensiona canvas de processamento conforme vídeo
+    function fitProc() {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (w && h) { proc.width = Math.floor(w/2); proc.height = Math.floor(h/2); } // downscale p/ performance
+    }
+    fitProc();
+
+    const loop = () => {
+      if (!analyzing) return;
+      try {
+        // desenha frame reduzido
+        pctx.drawImage(video, 0, 0, proc.width, proc.height);
+        const frame = pctx.getImageData(0, 0, proc.width, proc.height).data;
+
+        // converte para escala de cinza e calcula gradiente Laplaciano para nitidez
+        const gray = new Uint8ClampedArray(proc.width * proc.height);
+        for (let i = 0, j = 0; i < frame.length; i += 4, j++) {
+          // BT.709 luma (perceptual)
+          gray[j] = (0.2126*frame[i] + 0.7152*frame[i+1] + 0.0722*frame[i+2])|0;
+        }
+
+        // MSE entre quadros (proxy de movimento/trepidação)
+        let mse = 0;
+        if (prevFrame && prevFrame.length === gray.length) {
+          let sum = 0;
+          for (let k = 0; k < gray.length; k++) {
+            const d = gray[k] - prevFrame[k];
+            sum += d*d;
+          }
+          mse = sum / gray.length;
+        }
+        prevFrame = gray;
+
+        // Variância do Laplaciano (proxy de blur) — kernel 3×3: [[0,1,0],[1,-4,1],[0,1,0]]
+        /*calcula a variância do laplaciano de uma imagem em escala de cinza.
+        O laplaciano é uma medida de nitidez, e a variância indica o quão "focada" a imagem está.
+        O código percorre cada pixel (exceto as bordas), aplica um filtro laplaciano para calcular o valor do laplaciano naquele pixel,
+        e acumula a soma dos valores do laplaciano e a soma dos quadrados desses valores.
+        Depois, calcula a média e a variância dos valores do laplaciano. Uma alta variância indica uma imagem nítida, enquanto uma baixa variância sugere que a imagem está borrada.*/
+
+        let sumL = 0, sumL2 = 0;
+        const w = proc.width, h = proc.height;
+        for (let y=1; y<h-1; y++){
+          for (let x=1; x<w-1; x++){
+            const i = y*w + x;
+            const L = ( gray[i - w] + gray[i - 1] - 4*gray[i] + gray[i + 1] + gray[i + w] );
+            sumL += L; sumL2 += L*L;
+          }
+        }
+        const n = (w-2)*(h-2);
+        const meanL = sumL / n;
+        const varL = (sumL2 / n) - (meanL*meanL);
+        const lapSharpness = Math.max(0, varL);
+
+        // Atualiza UI
+        motionPill.textContent = `MSE: ${mse.toFixed(1)}`;
+        sharpPill.textContent  = `Laplaciano: ${lapSharpness.toFixed(0)}`;
+
+        const motionOK = mse < THRESH_MSE;
+        const sharpOK  = lapSharpness > THRESH_LAPL;
+
+        setPillClass(motionPill, motionOK ? 'good' : (mse < THRESH_MSE*1.3 ? 'warn':'bad'));
+        setPillClass(sharpPill, sharpOK ? 'good' : (lapSharpness > THRESH_LAPL*0.3 ? 'warn':'bad'));
+
+        if (motionOK && sharpOK) {
+          stableCounter = Math.min(stableFramesNeeded, stableCounter + 1);
+        } else {
+          stableCounter = 0;
+        }
+
+        if (stableCounter >= stableFramesNeeded) {
+          captureBtn.disabled = false;
+          hintPill.textContent = 'Estável e nítido — pode capturar ✅';
+          setPillClass(hintPill, 'good');
+        } else {
+          captureBtn.disabled = true;
+          hintPill.textContent = 'Mantenha firme… aguardando estabilidade';
+          setPillClass(hintPill, 'warn');
+        }
+      } catch(e){ console.warn(e); }
+
+      rafId = requestAnimationFrame(loop);
+    };
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function setPillClass(el, kind){
+    el.classList.remove('good','warn','bad');
+    if (kind) el.classList.add(kind);
+  }
+
+  function stopAnalyze() {
+    analyzing = false;
+    cancelAnimationFrame(rafId);
+  }
+
+  function drawCircularCropTo(canvas, source, centerX, centerY, radiusPx) {
+    const ctx = canvas.getContext('2d');
+    const outSize = Math.min(canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.save();
+    // máscara circular para saída com fundo transparente
+    ctx.beginPath();
+    ctx.arc(outSize/2, outSize/2, outSize/2 - 2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    // mapeia círculo do preview para o canvas de saída quadrado
+    const s = radiusPx*2;
+    ctx.drawImage(source,
+      centerX - radiusPx, centerY - radiusPx, s, s,      // src (quadrado dentro do círculo)
+      0, 0, outSize, outSize                              // dst
+    );
+    ctx.restore();
+  }
+
+  function getCircleOnVideo() {
+    // círculo central conforme slider & dimensões do elemento <video>
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return null;
+    const pct = Number(circleSizeSlider.value)/100;
+    const r = Math.min(vw, vh) * pct / 2;
+    return { cx: vw/2, cy: vh/2, r };
+  }
+
+  captureBtn.addEventListener('click', () => {
+    // captura um frame do vídeo e aplica o crop circular
+    const tmp = document.createElement('canvas');
+    const vw = video.videoWidth, vh = video.videoHeight;
+    tmp.width = vw; tmp.height = vh;
+    tmp.getContext('2d').drawImage(video, 0, 0, vw, vh);
+    const circ = getCircleOnVideo();
+    if (!circ) return;
+    drawCircularCropTo(outCanvas, tmp, circ.cx, circ.cy, circ.r);
+    downloadBtn.disabled = false;
+  });
+
+  openCamBtn.addEventListener('click', async () => {
+    await openCamera();
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'lesao_crop.png';
+    link.href = outCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      // desenha no outCanvas com crop circular central (mesma lógica do preview)
+      // para simplicidade da sprint 1
+      const minSide = Math.min(img.width, img.height);
+      const r = minSide * (Number(circleSizeSlider.value)/100) / 2;
+      drawCircularCropTo(outCanvas, img, img.width/2, img.height/2, r);
+      downloadBtn.disabled = false;
+    };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // limpeza ao sair
+  window.addEventListener('beforeunload', () => {
+    stopAnalyze();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  });
+
+  // acessibilidade teclado
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'c' && !captureBtn.disabled) captureBtn.click();
+  });
+</script>
+</body>
+</html>
