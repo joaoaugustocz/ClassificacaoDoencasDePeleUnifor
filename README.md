@@ -1,18 +1,51 @@
-# Projeto de Processamento de Imagens de Pele
+# Classificação de Doenças de Pele - UNIFOR
 
-Este projeto contém uma coleção de scripts Python para pré-processamento e aumento de dados (data augmentation) de imagens de lesões de pele, útil para tarefas de visão computacional e aprendizado de máquina.
+Sistema de processamento e classificação de imagens dermatológicas para análise de lesões de pele usando deep learning.
 
-## Funcionalidades
+## 📋 Sobre o Projeto
 
-- **Aumento de Dados (`augment_skin_images.py`):** Gera novas imagens com variações de rotação, zoom, brilho, contraste, ruído, etc., para expandir um conjunto de dados.
-- **Extração de ROI (`circle_to_square.py`):** Detecta a região de interesse circular principal em imagens de dermatoscopia (especialmente aquelas com fundo transparente), recorta-a em um formato quadrado e a salva.
-- **Correção de Cor (`color_constancy_clahe.py`):** Padroniza a coloração das imagens aplicando o algoritmo de constância de cor "Gray-World" e melhora o contraste local com CLAHE.
+Este projeto implementa um pipeline completo de pré-processamento de imagens médicas para classificação de lesões de pele, com foco no dataset HAM10000. Inclui ferramentas para:
 
-## Scripts
+- Aplicação de máscaras de segmentação
+- Correção de vinheta (iluminação não-uniforme)
+- Normalização de cor e contraste
+- Data augmentation
+- Preparação de imagens para modelos de deep learning
 
-- **`augment_skin_images.py`**: Pede uma pasta de entrada e o número total de imagens desejado. Ele então gera novas imagens aumentadas até atingir esse total e as salva na subpasta `imgOutput`.
-- **`circle_to_square.py`**: Processa imagens para detectar a área circular principal, recorta-a como um quadrado e a salva na subpasta `roiSquare`. É ideal para imagens PNG circulares com canal alfa.
-- **`color_constancy_clahe.py`**: Aplica o balanceamento de branco (Gray-World) e, em seguida, o algoritmo CLAHE (no espaço de cor Lab ou HSV, à escolha do usuário). As imagens processadas são salvas em `colorFixed_Lab` ou `colorFixed_HSV`.
+## 📁 Estrutura do Projeto
+
+```
+ClassificacaoDoencasDePeleUnifor/
+├── scripts/                          # Scripts organizados por categoria
+│   ├── preprocessing/                # Pré-processamento geral
+│   │   ├── circle_to_square.py      # Extração de ROI circular
+│   │   └── color_constancy_clahe.py # Normalização de cor
+│   ├── augmentation/                 # Data augmentation
+│   │   └── augment_skin_images.py   # Geração de augmentations
+│   └── ham10000_pipeline/            # Pipeline HAM10000
+│       ├── apply_masks.py           # Aplicação de máscaras + correção vinheta
+│       └── resize_for_model.py      # Redimensionamento para modelos
+├── HAM10000/                         # Dataset HAM10000
+│   ├── images/                       # Imagens originais
+│   ├── masks/                        # Máscaras de segmentação
+│   └── model_ready_*/                # Imagens prontas para treino
+└── requirements.txt                  # Dependências Python
+```
+
+## 🚀 Pipeline Recomendado (HAM10000)
+
+```bash
+# 1. Aplicar máscaras + correção de vinheta
+python scripts/ham10000_pipeline/apply_masks.py
+# → Escolha modo 4 (Recortado + Vinheta corrigida)
+
+# 2. Redimensionar para modelo
+python scripts/ham10000_pipeline/resize_for_model.py
+# → Escolha 224×224 com padding
+
+# 3. Treinar modelo
+# Usar imagens de: HAM10000/model_ready_224x224_padded/
+```
 
 ## Instalação e Configuração
 
@@ -40,15 +73,39 @@ Este projeto contém uma coleção de scripts Python para pré-processamento e a
     pip install -r requirements.txt
     ```
 
-## Como Usar
+## 📚 Documentação dos Scripts
 
-Cada script é interativo e solicitará o caminho para a pasta com as imagens que você deseja processar.
+Cada categoria de scripts possui documentação detalhada:
 
-1.  Coloque suas imagens em uma pasta.
-2.  Execute o script desejado a partir do seu terminal. Por exemplo:
+- **[scripts/README.md](scripts/README.md)** - Visão geral e fluxo de trabalho
+- **[scripts/preprocessing/](scripts/preprocessing/)** - Scripts de pré-processamento geral
+- **[scripts/augmentation/](scripts/augmentation/)** - Scripts de data augmentation
+- **[scripts/ham10000_pipeline/](scripts/ham10000_pipeline/)** - Pipeline completo HAM10000
 
-    ```bash
-    python color_constancy_clahe.py
-    ```
-3.  Siga as instruções no terminal (informe o caminho da pasta e outras opções, se solicitado).
-4.  As imagens processadas serão salvas em uma nova subpasta criada dentro do diretório que você forneceu.
+## 🔧 Scripts Disponíveis
+
+### Pipeline HAM10000 (Principal)
+```bash
+# Aplicar máscaras + correção de vinheta
+python scripts/ham10000_pipeline/apply_masks.py
+
+# Redimensionar para modelo
+python scripts/ham10000_pipeline/resize_for_model.py
+```
+
+### Pré-processamento Geral
+```bash
+# Extrair ROI circular
+python scripts/preprocessing/circle_to_square.py
+
+# Normalização de cor (Gray-World + CLAHE)
+python scripts/preprocessing/color_constancy_clahe.py
+```
+
+### Data Augmentation
+```bash
+# Gerar augmentations
+python scripts/augmentation/augment_skin_images.py
+```
+
+Todos os scripts são interativos e guiarão você através das opções disponíveis.
