@@ -33,9 +33,9 @@ def segment_lesion(image_path):
     # Usamos operações morfológicas para limpar a máscara.
     # A "abertura" (opening) remove pequenos ruídos brancos no fundo.
     # O "fechamento" (closing) preenche pequenos buracos pretos na lesão.
-    kernel = np.ones((3,3),np.uint8)
-    #kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations = 2)
+    #kernel = np.ones((3,3),np.uint8)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations = 3)
     closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel, iterations = 3)
 
     # 5. Encontrar e desenhar contornos
@@ -64,4 +64,4 @@ def segment_lesion(image_path):
     print("Segmentação concluída. A máscara da lesão e a lesão isolada foram salvas.")
 
 # Executar a função com a imagem de teste
-segment_lesion('TesteMancha.jpg')
+segment_lesion(r"C:\Users\czjoa\Documents\AulasUnifor\PDI\ISIC_0025018.jpg")
