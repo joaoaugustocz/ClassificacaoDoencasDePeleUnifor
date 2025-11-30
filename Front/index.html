@@ -86,8 +86,9 @@
             <span class="pill warn" id="hint">Aponte a lesão ao centro e mantenha firme</span>
           </div>
           <div class="row actions" style="margin-top:12px;justify-content:center">
-            <button class="btn primary" id="openCam">Abrir câmera</button>
-            <button class="btn big cta" id="capture" disabled>Capturar</button>
+        <button class="btn primary" id="openCam">Abrir câmera</button>
+        <button class="btn" id="toggleFlash" disabled>Flash indisponível</button>
+        <button class="btn big cta" id="capture" disabled>Capturar</button>
             <label for="file" class="btn">Importar imagem</label>
             <input type="file" id="file" accept="image/*" />
             <button class="btn" id="download" disabled>Baixar selecionado</button>
@@ -110,13 +111,15 @@
             <canvas id="outCanvas" width="512" height="512" title="Original recortada"></canvas>
             <img id="segPreview" alt="Segmentação" style="max-width:512px;max-height:512px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:#0b1220" />
           </div>
-          <div class="row" style="margin-top:12px;justify-content:center">
-            <button class="btn" id="useOriginal" disabled>Não ficou bom — usar original</button>
-            <button class="btn primary" id="useSegmented" disabled>Ficou bom — usar segmentada</button>
-          </div>
-          <div class="foot" id="resultHint">Após a captura a segmentação será aplicada e mostrada ao lado.</div>
-        </div>
-      </section>
+      <div class="row" style="margin-top:12px;justify-content:center">
+        <button class="btn" id="useOriginal" disabled>Não ficou bom — usar original</button>
+        <button class="btn primary" id="useSegmented" disabled>Ficou bom — usar segmentada</button>
+        <button class="btn cta" id="classifyBtn" disabled>Classificar</button>
+      </div>
+      <div class="foot" id="resultHint">Após a captura a segmentação será aplicada e mostrada ao lado.</div>
+      <div class="foot" id="classResult"></div>
+    </div>
+  </section>
     </div>
   </div>
 
@@ -142,18 +145,23 @@
     const useOriginalBtn = document.getElementById('useOriginal');
     const useSegmentedBtn = document.getElementById('useSegmented');
     const resultHint = document.getElementById('resultHint');
+    const classifyBtn = document.getElementById('classifyBtn');
+    const classResult = document.getElementById('classResult');
+    const flashBtn = document.getElementById('toggleFlash');
 
     let stream = null;
+    let videoTrack = null;
     let rafId = null;
     let prevFrame = null;          // Uint8ClampedArray (grayscale)
     let analyzing = false;
     let originalBlob = null;       // Blob da imagem original recortada
     let segmentedBlob = null;      // Blob retornado pela API
     let chosenBlob = null;         // Blob escolhido (original ou segmentada)
+    let flashOn = false;
 
     // thresholds (ajustáveis)
-    let THRESH_MSE = 55;           // movimento (quanto menor melhor)
-    let THRESH_LAPL = 120.0;       // nitidez (quanto maior melhor)
+    let THRESH_MSE = 85;           // movimento (quanto menor melhor)
+    let THRESH_LAPL = 80.0;        // nitidez (quanto maior melhor)
     let stableFramesNeeded = 8;    // frames estáveis para liberar captura
     let stableCounter = 0;
 
@@ -170,8 +178,20 @@
     circleSizeSlider.addEventListener('input', updateOverlay);
     updateOverlay();
 
+    function updateFlashButton(){
+      const supported = !!(videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch);
+      if (!supported){
+        flashBtn.disabled = true;
+        flashBtn.textContent = 'Flash indisponível';
+        return;
+      }
+      flashBtn.disabled = false;
+      flashBtn.textContent = flashOn ? 'Flash ligado' : 'Flash desligado';
+    }
+
     async function openCamera() {
       if (stream) stream.getTracks().forEach(t => t.stop());
+      stream = null; videoTrack = null; flashOn = false; updateFlashButton();
       async function tryGet(constraints){ return navigator.mediaDevices.getUserMedia(constraints); }
       const trials = [
         { video: { facingMode: { exact: 'environment' }, width:{ideal:1280}, height:{ideal:1706} }, audio:false },
@@ -184,7 +204,9 @@
         try{
           const s = await tryGet(c);
           stream = s; video.srcObject = s; await video.play();
+          videoTrack = stream.getVideoTracks()[0] || null;
           startAnalyzeLoop();
+          updateFlashButton();
           return;
         }catch(e){ lastErr = e; }
       }
@@ -195,6 +217,7 @@
       else if (lastErr && lastErr.name === 'OverconstrainedError') hint = 'Resolução/facingMode não suportado pela câmera.';
       else if (lastErr && lastErr.name === 'SecurityError') hint = 'Abra via HTTPS ou localhost (não use file://).';
       alert(hint);
+      updateFlashButton();
     }
 
     function startAnalyzeLoop(){
@@ -263,7 +286,13 @@
     setActiveTab('cap');
 
     // Base da API: quando a página é servida em 5500 (dev), chama a API em 5000.
-    const API_BASE = (location.protocol === 'file:' || ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port !== '5000')) ? 'http://127.0.0.1:5000' : '';
+    const currentHost = location.hostname || '127.0.0.1';
+    let API_BASE = '';
+    if (location.protocol === 'file:') {
+      API_BASE = `http://${currentHost}:5000`;
+    } else if (location.port && location.port !== '5000') {
+      API_BASE = `${location.protocol}//${currentHost}:5000`;
+    }
 
     async function runSegmentation(blob){
       try{
@@ -284,6 +313,8 @@
       segmentedBlob = await runSegmentation(originalBlob);
       if (segmentedBlob){ segPreview.src = URL.createObjectURL(segmentedBlob); useSegmentedBtn.disabled = false; chosenBlob = segmentedBlob; }
       downloadBtn.disabled = false;
+      classifyBtn.disabled = false;
+      classResult.textContent = '';
     });
 
     openCamBtn.addEventListener('click', async ()=>{ await openCamera(); });
@@ -305,7 +336,7 @@
         originalBlob = await toBlob(outCanvas,'image/png'); chosenBlob = originalBlob; useOriginalBtn.disabled = true; setActiveTab('res');
         segmentedBlob = await runSegmentation(originalBlob);
         if (segmentedBlob){ segPreview.src = URL.createObjectURL(segmentedBlob); useSegmentedBtn.disabled = false; chosenBlob = segmentedBlob; }
-        downloadBtn.disabled = false; useOriginalBtn.disabled = false;
+        downloadBtn.disabled = false; useOriginalBtn.disabled = false; classifyBtn.disabled = false; classResult.textContent = '';
       };
       img.src = URL.createObjectURL(file);
     });
@@ -333,6 +364,25 @@
       if(segmentedBlob){ chosenBlob = segmentedBlob; await saveToServer(segmentedBlob, 'segmented'); }
     });
 
+    classifyBtn.addEventListener('click', async ()=>{
+      if (!chosenBlob){ alert('Capture ou importe uma imagem primeiro.'); return; }
+      classResult.textContent = 'Classificando...';
+      try{
+        const fd = new FormData();
+        const name = chosenBlob === segmentedBlob ? 'lesao_segmentada.png' : 'lesao_original.png';
+        fd.append('image', chosenBlob, name);
+        const resp = await fetch(`${API_BASE}/classify`, { method:'POST', body: fd });
+        const js = await resp.json();
+        if (!resp.ok) throw new Error(js.error || 'Falha ao classificar');
+        const probs = js.probabilities || {};
+        const probText = Object.entries(probs).map(([k,v])=>`${k}: ${(Number(v)*100).toFixed(1)}%`).join(' | ');
+        classResult.textContent = `Classe: ${js.prediction} — ${probText}`;
+      }catch(e){
+        console.warn(e);
+        classResult.textContent = 'Erro ao classificar. Verifique se a API está rodando.';
+      }
+    });
+
     // Salvamento em pasta (File System Access API)
     const pickFolderBtn = document.getElementById('pickFolder');
     const saveToFolderBtn = document.getElementById('saveToFolder');
@@ -354,6 +404,23 @@
     // limpeza ao sair
     window.addEventListener('beforeunload', () => { stopAnalyze(); if (stream) stream.getTracks().forEach(t => t.stop()); });
     document.addEventListener('keydown', (ev) => { if (ev.key === 'c' && !captureBtn.disabled) captureBtn.click(); });
+    flashBtn.addEventListener('click', async () => {
+      if (!videoTrack){ return; }
+      const caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      if (!caps.torch){
+        alert('Este dispositivo não suporta controle de flash via navegador.');
+        return;
+      }
+      try{
+        const newState = !flashOn;
+        await videoTrack.applyConstraints({ advanced: [{ torch: newState }] });
+        flashOn = newState;
+      }catch(err){
+        console.warn('Falha ao ajustar flash', err);
+        alert('Não foi possível alternar o flash. Verifique permissões do navegador.');
+      }
+      updateFlashButton();
+    });
   </script>
 </body>
 </html>
