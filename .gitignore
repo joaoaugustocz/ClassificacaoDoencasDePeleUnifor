@@ -1,5 +1,42 @@
+# Python environments
 venv/
-enchanced_images
-HAM10000
-BCN20000 - Dermoscopic Lesions in the Wild
-Skin Diseases
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Datasets and generated images
+HAM10000/
+BCN20000 - Dermoscopic Lesions in the Wild/
+Skin Diseases/
+enchanced_images/
+imagens_salvas/
+Treinamento Modelos/Datasets*/
+Treinamento Modelos/*/images/
+Treinamento Modelos/*/imgOutput/
+Treinamento Modelos/*/train/
+Treinamento Modelos/*/test/
+Treinamento Modelos/*/val/
+
+# Model artifacts and large archives
+Treinamento Modelos/*/outputs/
+*.pth
+*.h5
+*.ckpt
+*.7z
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.npz
+*.npy
+
+# Jupyter autosave
+*.ipynb_checkpoints/
