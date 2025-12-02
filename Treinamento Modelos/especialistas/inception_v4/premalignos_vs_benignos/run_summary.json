@@ -1,0 +1,18 @@
+{
+  "device": "cuda",
+  "model": "inception_v4",
+  "classes": [
+    "Pre-Malignos",
+    "Benignos"
+  ],
+  "epochs": 15,
+  "batch_size": 16,
+  "best_val_acc": 0.95125,
+  "best_val_f1": 0.9512462672923395,
+  "dataset": "C:\\Users\\rafae\\PycharmProjects\\SistemasInteligentes\\dataset_v2",
+  "test_metrics": {
+    "loss": 0.18379035640044095,
+    "accuracy": 0.93875,
+    "f1": 0.93875
+  }
+}

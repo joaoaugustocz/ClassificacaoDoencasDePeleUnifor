@@ -1,0 +1,56 @@
+{
+  "benignos_vs_malignos": {
+    "device": "cuda",
+    "model": "inception_v4",
+    "classes": [
+      "Benignos",
+      "Malignos"
+    ],
+    "epochs": 15,
+    "batch_size": 16,
+    "best_val_acc": 0.863125,
+    "best_val_f1": 0.8630860116025227,
+    "dataset": "C:\\Users\\rafae\\PycharmProjects\\SistemasInteligentes\\dataset_v2",
+    "test_metrics": {
+      "loss": 0.5256914861220866,
+      "accuracy": 0.848125,
+      "f1": 0.8480603663042598
+    }
+  },
+  "malignos_vs_premalignos": {
+    "device": "cuda",
+    "model": "inception_v4",
+    "classes": [
+      "Malignos",
+      "Pre-Malignos"
+    ],
+    "epochs": 28,
+    "batch_size": 16,
+    "best_val_acc": 0.95125,
+    "best_val_f1": 0.9512487812195305,
+    "dataset": "C:\\Users\\rafae\\PycharmProjects\\SistemasInteligentes\\dataset_v2",
+    "test_metrics": {
+      "loss": 0.19503239321558793,
+      "accuracy": 0.95,
+      "f1": 0.949997187341788
+    }
+  },
+  "premalignos_vs_benignos": {
+    "device": "cuda",
+    "model": "inception_v4",
+    "classes": [
+      "Pre-Malignos",
+      "Benignos"
+    ],
+    "epochs": 15,
+    "batch_size": 16,
+    "best_val_acc": 0.95125,
+    "best_val_f1": 0.9512462672923395,
+    "dataset": "C:\\Users\\rafae\\PycharmProjects\\SistemasInteligentes\\dataset_v2",
+    "test_metrics": {
+      "loss": 0.18379035640044095,
+      "accuracy": 0.93875,
+      "f1": 0.93875
+    }
+  }
+}

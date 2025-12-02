@@ -1,0 +1,13 @@
+{
+  "val_loss": 0.43338695416847867,
+  "val_acc": 0.9225,
+  "val_f1_macro": 0.9226549475102539,
+  "test_loss": 0.4454140476882458,
+  "test_acc": 0.9141666666666667,
+  "test_f1_macro": 0.9142925513892347,
+  "classes": [
+    "Benignos",
+    "Malignos",
+    "Pre-Malignos"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "specialist": "resnetrs50_specialist_benignos_malignos",
+  "classes": [
+    "Benignos",
+    "Malignos"
+  ],
+  "val_loss": 0.3442850410938263,
+  "val_acc": 0.9125,
+  "val_f1_macro": 0.9124987695139463,
+  "test_loss": 0.36255466658622026,
+  "test_acc": 0.9075,
+  "test_f1_macro": 0.9074855446163463
+}

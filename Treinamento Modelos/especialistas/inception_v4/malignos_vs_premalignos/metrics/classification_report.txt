@@ -1,0 +1,9 @@
+              precision    recall  f1-score   support
+
+    Malignos     0.9468    0.9563    0.9515       800
+Pre-Malignos     0.9558    0.9463    0.9510       800
+
+    accuracy                         0.9513      1600
+   macro avg     0.9513    0.9513    0.9512      1600
+weighted avg     0.9513    0.9513    0.9512      1600
+

@@ -1,0 +1,9 @@
+              precision    recall  f1-score   support
+
+Pre-Malignos     0.9435    0.9600    0.9517       800
+    Benignos     0.9593    0.9425    0.9508       800
+
+    accuracy                         0.9513      1600
+   macro avg     0.9514    0.9512    0.9512      1600
+weighted avg     0.9514    0.9513    0.9512      1600
+

@@ -1,0 +1,13 @@
+{
+  "specialist": "resnetrs50_specialist_malignos_premalignos",
+  "classes": [
+    "Malignos",
+    "Pre-Malignos"
+  ],
+  "val_loss": 0.24892596807330847,
+  "val_acc": 0.97875,
+  "val_f1_macro": 0.97875,
+  "test_loss": 0.26333533227443695,
+  "test_acc": 0.96625,
+  "test_f1_macro": 0.9662499472655426
+}

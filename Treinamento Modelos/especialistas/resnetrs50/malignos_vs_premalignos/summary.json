@@ -1,0 +1,13 @@
+{
+  "specialist": "resnetrs50_specialist_benignos_premalignos",
+  "classes": [
+    "Benignos",
+    "Pre-Malignos"
+  ],
+  "val_loss": 0.18038906250149012,
+  "val_acc": 0.981875,
+  "val_f1_macro": 0.9818749929199191,
+  "test_loss": 0.19609465822577477,
+  "test_acc": 0.975,
+  "test_f1_macro": 0.9749993749843746
+}
